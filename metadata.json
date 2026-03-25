@@ -1,0 +1,7 @@
+{
+  "uuid": "dual-terminal@kowalski",
+  "name": "Dual Terminal",
+  "description": "Move the focused window to a specified monitor via DBus",
+  "shell-version": ["49"],
+  "version": 1
+}

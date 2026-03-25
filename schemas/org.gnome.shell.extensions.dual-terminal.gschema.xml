@@ -1,0 +1,10 @@
+<schemalist gettext-domain="dual-terminal@kowalski">
+  <schema id="org.gnome.shell.extensions.dual-terminal"
+          path="/org/gnome/shell/extensions/dual-terminal/">
+    <key name="dual-terminal-launch" type="as">
+      <default>['&lt;Super&gt;x']</default>
+      <summary>Launch dual terminal</summary>
+      <description>Keybinding to launch two fullscreen terminals on separate monitors with tmux</description>
+    </key>
+  </schema>
+</schemalist>
