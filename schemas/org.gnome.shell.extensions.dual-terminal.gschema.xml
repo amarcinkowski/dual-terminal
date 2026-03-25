@@ -11,5 +11,30 @@
       <summary>Fullscreen mode</summary>
       <description>If true, terminals launch in fullscreen. If false, they are maximized.</description>
     </key>
+    <key name="terminal" type="s">
+      <default>'ptyxis'</default>
+      <summary>Terminal application</summary>
+      <description>Terminal emulator to use (must support -s for separate instance and -x for command)</description>
+    </key>
+    <key name="terminal-1-monitor" type="i">
+      <default>1</default>
+      <summary>Terminal 1 monitor index</summary>
+      <description>Monitor index for the first terminal window</description>
+    </key>
+    <key name="terminal-1-cmd" type="s">
+      <default>'tmux new-session -A -s left'</default>
+      <summary>Terminal 1 command</summary>
+      <description>Command to run in the first terminal (leave empty for default shell)</description>
+    </key>
+    <key name="terminal-2-monitor" type="i">
+      <default>0</default>
+      <summary>Terminal 2 monitor index</summary>
+      <description>Monitor index for the second terminal window</description>
+    </key>
+    <key name="terminal-2-cmd" type="s">
+      <default>'tmux new-session -A -s right'</default>
+      <summary>Terminal 2 command</summary>
+      <description>Command to run in the second terminal (leave empty for default shell)</description>
+    </key>
   </schema>
 </schemalist>

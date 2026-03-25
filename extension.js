@@ -22,14 +22,6 @@ const IFACE = `
   </interface>
 </node>`;
 
-// Domyślna konfiguracja uruchamiana przez Super+X
-const DEFAULT_CONFIG = {
-    terminal: 'ptyxis',
-    terminals: [
-        { monitor: 1, cmd: 'tmux new-session -A -s left' },
-        { monitor: 0, cmd: 'tmux new-session -A -s right' },
-    ],
-};
 
 export default class DualTerminalExtension {
     _dbus = null;
@@ -93,19 +85,21 @@ export default class DualTerminalExtension {
     }
 
     _launchDefault() {
-        this._launchFromConfig(DEFAULT_CONFIG);
-    }
+        const settings = this._getKeybindingSettings();
+        const terminalApp = settings.get_string('terminal') || 'ptyxis';
 
-    _launchFromConfig(config) {
-        const terminalApp = config.terminal || 'ptyxis';
-        const terminals = config.terminals || [];
-        if (terminals.length === 0) return;
-
-        this._pending = terminals.map(t => ({
-            monitor: t.monitor ?? 0,
-            cmd: t.cmd || null,
-            terminal: terminalApp,
-        }));
+        this._pending = [
+            {
+                monitor: settings.get_int('terminal-1-monitor'),
+                cmd: settings.get_string('terminal-1-cmd') || null,
+                terminal: terminalApp,
+            },
+            {
+                monitor: settings.get_int('terminal-2-monitor'),
+                cmd: settings.get_string('terminal-2-cmd') || null,
+                terminal: terminalApp,
+            },
+        ];
 
         this._spawnNext();
     }
@@ -172,8 +166,20 @@ export default class DualTerminalExtension {
         } catch (e) {
             return `error: invalid JSON: ${e.message}`;
         }
-        this._launchFromConfig(config);
-        return `launching ${(config.terminals || []).length} terminals`;
+
+        const terminalApp = config.terminal || 'ptyxis';
+        const terminals = config.terminals || [];
+        if (terminals.length === 0)
+            return 'error: no terminals defined';
+
+        this._pending = terminals.map(t => ({
+            monitor: t.monitor ?? 0,
+            cmd: t.cmd || null,
+            terminal: terminalApp,
+        }));
+
+        this._spawnNext();
+        return `launching ${terminals.length} terminals`;
     }
 
     MoveToMonitor(monitorIndex, fullscreen) {
