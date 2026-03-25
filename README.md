@@ -105,6 +105,15 @@ gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowals
   set org.gnome.shell.extensions.dual-terminal dual-terminal-launch "['<Super>z']"
 ```
 
+### Fullscreen
+
+By default terminals are **maximized**. To use fullscreen instead:
+
+```bash
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas \
+  set org.gnome.shell.extensions.dual-terminal fullscreen true
+```
+
 ## How it works
 
 1. `enable()` registers the `Super+X` keybinding and listens for `window-created` signals

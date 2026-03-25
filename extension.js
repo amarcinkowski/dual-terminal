@@ -133,7 +133,11 @@ export default class DualTerminalExtension {
         if (task.monitor >= 0 && task.monitor < nMonitors) {
             win.move_to_monitor(task.monitor);
         }
-        win.make_fullscreen();
+        const settings = this._getKeybindingSettings();
+        if (settings.get_boolean('fullscreen'))
+            win.make_fullscreen();
+        else
+            win.maximize(Meta.MaximizeFlags.BOTH);
 
         if (this._pending.length > 0) {
             this._spawnNext();

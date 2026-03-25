@@ -6,5 +6,10 @@
       <summary>Launch dual terminal</summary>
       <description>Keybinding to launch two fullscreen terminals on separate monitors with tmux</description>
     </key>
+    <key name="fullscreen" type="b">
+      <default>false</default>
+      <summary>Fullscreen mode</summary>
+      <description>If true, terminals launch in fullscreen. If false, they are maximized.</description>
+    </key>
   </schema>
 </schemalist>
