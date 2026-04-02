@@ -1,0 +1,2 @@
+#!/bin/bash
+tmux capture-pane -t agent -p | tail -${1:-20}

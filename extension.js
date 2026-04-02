@@ -2,6 +2,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const IFACE = `
@@ -22,10 +23,10 @@ const IFACE = `
   </interface>
 </node>`;
 
-
-export default class DualTerminalExtension {
+export default class DualTerminalExtension extends Extension {
     _dbus = null;
     _pending = [];
+    _defaultTracked = [];
     _settings = null;
 
     enable() {
@@ -39,13 +40,12 @@ export default class DualTerminalExtension {
             'window-created', (_display, win) => this._onWindowCreated(win)
         );
 
-        // Rejestruj Super+X
         Main.wm.addKeybinding(
             'dual-terminal-launch',
             this._getKeybindingSettings(),
             Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            () => this._launchDefault()
+            () => this._toggleDefault()
         );
     }
 
@@ -60,48 +60,83 @@ export default class DualTerminalExtension {
             this._dbus.unexport();
             this._dbus = null;
         }
-        if (this._settings) {
-            this._settings = null;
-        }
+        this._settings = null;
         this._pending = [];
+        this._defaultTracked = [];
     }
 
     _getKeybindingSettings() {
         if (!this._settings) {
-            const schema = 'org.gnome.shell.extensions.dual-terminal';
-            const schemaSource = Gio.SettingsSchemaSource.new_from_directory(
-                GLib.build_filenamev([
-                    GLib.get_home_dir(),
-                    '.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas'
-                ]),
-                Gio.SettingsSchemaSource.get_default(),
-                false
-            );
-            this._settings = new Gio.Settings({
-                settings_schema: schemaSource.lookup(schema, true),
-            });
+            this._settings = this.getSettings('org.gnome.shell.extensions.dual-terminal');
         }
         return this._settings;
+    }
+
+    _pruneDefaultTracked() {
+        this._defaultTracked = this._defaultTracked.filter(w => {
+            try {
+                return w.get_wm_class() !== null;
+            } catch (e) {
+                return false;
+            }
+        });
+    }
+
+    _getLiveDefaultWindows() {
+        this._pruneDefaultTracked();
+        return this._defaultTracked;
+    }
+
+    _toggleDefault() {
+        const wins = this._getLiveDefaultWindows();
+
+        if (wins.length === 0) {
+            this._launchDefault();
+            return;
+        }
+
+        const hasVisible = wins.some(w => !w.minimized);
+
+        if (hasVisible) {
+            for (const w of wins) w.minimize();
+        } else {
+            const now = global.get_current_time();
+            for (const w of wins) {
+                w.unminimize();
+                w.activate(now);
+            }
+            if (wins.length > 0) wins[0].activate(now);
+        }
     }
 
     _launchDefault() {
         const settings = this._getKeybindingSettings();
         const terminalApp = settings.get_string('terminal') || 'ptyxis';
+        const cmd1 = settings.get_string('terminal-1-cmd') || '';
+        const cmd2 = settings.get_string('terminal-2-cmd') || '';
 
-        this._pending = [
-            {
+        this._pending = [];
+
+        if (cmd1) {
+            this._pending.push({
                 monitor: settings.get_int('terminal-1-monitor'),
-                cmd: settings.get_string('terminal-1-cmd') || null,
+                cmd: cmd1,
                 terminal: terminalApp,
-            },
-            {
-                monitor: settings.get_int('terminal-2-monitor'),
-                cmd: settings.get_string('terminal-2-cmd') || null,
-                terminal: terminalApp,
-            },
-        ];
+                source: 'default',
+            });
+        }
 
-        this._spawnNext();
+        if (cmd2) {
+            this._pending.push({
+                monitor: settings.get_int('terminal-2-monitor'),
+                cmd: cmd2,
+                terminal: terminalApp,
+                source: 'default',
+            });
+        }
+
+        if (this._pending.length > 0)
+            this._spawnTerminal();
     }
 
     _onWindowCreated(win) {
@@ -127,18 +162,22 @@ export default class DualTerminalExtension {
         if (task.monitor >= 0 && task.monitor < nMonitors) {
             win.move_to_monitor(task.monitor);
         }
+
         const settings = this._getKeybindingSettings();
         if (settings.get_boolean('fullscreen'))
             win.make_fullscreen();
         else
             win.maximize(Meta.MaximizeFlags.BOTH);
 
+        if (task.source === 'default')
+            this._defaultTracked.push(win);
+
         if (this._pending.length > 0) {
-            this._spawnNext();
+            this._spawnTerminal();
         }
     }
 
-    _spawnNext() {
+    _spawnTerminal() {
         const task = this._pending[0];
         if (!task) return;
 
@@ -159,6 +198,8 @@ export default class DualTerminalExtension {
         }
     }
 
+    // --- DBus methods ---
+
     Launch(configJson) {
         let config;
         try {
@@ -176,9 +217,10 @@ export default class DualTerminalExtension {
             monitor: t.monitor ?? 0,
             cmd: t.cmd || null,
             terminal: terminalApp,
+            source: 'dbus',
         }));
 
-        this._spawnNext();
+        this._spawnTerminal();
         return `launching ${terminals.length} terminals`;
     }
 

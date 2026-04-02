@@ -41,10 +41,11 @@ gnome-extensions enable dual-terminal@kowalski
 
 **`Super+X`** launches the default configuration:
 
-- Two [Ptyxis](https://gitlab.gnome.org/chergert/ptyxis) terminal windows, each fullscreen on a separate monitor
+- Two [Ptyxis](https://gitlab.gnome.org/chergert/ptyxis) terminal windows, each maximized on a separate monitor
 - Each window attaches to a named tmux session (`left` / `right`)
+- The sessions are visually distinct via tmux status bar colors and labels
 
-Pressing `Super+X` again reattaches to existing tmux sessions (`-A` flag).
+Pressing `Super+X` again hides or restores only the windows from that default layout. DBus-launched windows are not included in the toggle set.
 
 ### DBus API
 
@@ -84,16 +85,14 @@ gdbus call --session --dest org.gnome.Shell \
 
 ### Default layout
 
-Edit `DEFAULT_CONFIG` in `extension.js`:
+The default layout is configured via GSettings schema keys:
 
-```js
-const DEFAULT_CONFIG = {
-    terminal: 'ptyxis',
-    terminals: [
-        { monitor: 1, cmd: 'tmux new-session -A -s left' },
-        { monitor: 0, cmd: 'tmux new-session -A -s right' },
-    ],
-};
+```bash
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas \
+  get org.gnome.shell.extensions.dual-terminal terminal-1-cmd
+
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas \
+  get org.gnome.shell.extensions.dual-terminal terminal-2-cmd
 ```
 
 ### Keybinding
@@ -119,7 +118,7 @@ gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowals
 1. `enable()` registers the `Super+X` keybinding and listens for `window-created` signals
 2. On keypress (or DBus `Launch` call), a queue of terminals is created
 3. The first terminal is spawned (`ptyxis -s -x "tmux ..."`)
-4. When GNOME Shell emits `window-created`, the extension moves the new window to the target monitor and makes it fullscreen
+4. When GNOME Shell emits `window-created`, the extension moves the new window to the target monitor and then maximizes it or makes it fullscreen, depending on settings
 5. If more terminals are queued, the next one is spawned
 6. Sequential spawning eliminates race conditions — no `sleep` hacks needed
 

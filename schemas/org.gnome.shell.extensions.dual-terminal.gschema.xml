@@ -22,9 +22,9 @@
       <description>Monitor index for the first terminal window</description>
     </key>
     <key name="terminal-1-cmd" type="s">
-      <default>'tmux new-session -A -s left'</default>
+      <default>'tmux new-session -A -s left \; set-option -t left status-style bg=blue,fg=white \; set-option -t left status-left [left] \; rename-window left'</default>
       <summary>Terminal 1 command</summary>
-      <description>Command to run in the first terminal (leave empty for default shell)</description>
+      <description>Command to run in the first terminal. Default session is named left and uses a blue tmux status bar.</description>
     </key>
     <key name="terminal-2-monitor" type="i">
       <default>0</default>
@@ -32,9 +32,9 @@
       <description>Monitor index for the second terminal window</description>
     </key>
     <key name="terminal-2-cmd" type="s">
-      <default>'tmux new-session -A -s right'</default>
+      <default>'tmux new-session -A -s right \; set-option -t right status-style bg=green,fg=black \; set-option -t right status-left [right] \; rename-window right'</default>
       <summary>Terminal 2 command</summary>
-      <description>Command to run in the second terminal (leave empty for default shell)</description>
+      <description>Command to run in the second terminal. Default session is named right and uses a green tmux status bar.</description>
     </key>
   </schema>
 </schemalist>
