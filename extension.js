@@ -1,5 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -21,11 +22,47 @@ const IFACE = `
       <arg type="s" direction="in" name="config_json"/>
       <arg type="s" direction="out" name="result"/>
     </method>
+    <method name="TerminatorNextPane">
+      <arg type="s" direction="out" name="result"/>
+    </method>
+    <method name="TerminatorPrevPane">
+      <arg type="s" direction="out" name="result"/>
+    </method>
+    <method name="TerminatorToggleZoom">
+      <arg type="s" direction="out" name="result"/>
+    </method>
     <method name="ListWindows">
       <arg type="s" direction="out" name="result"/>
     </method>
   </interface>
 </node>`;
+
+class Keyboard {
+    constructor() {
+        const seat = Clutter.get_default_backend().get_default_seat();
+        this._device = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
+    }
+
+    destroy() {
+        this._device.run_dispose();
+    }
+
+    _notify(key, state) {
+        this._device.notify_keyval(
+            Clutter.get_current_event_time() * 1000,
+            key,
+            state
+        );
+    }
+
+    press(key) {
+        this._notify(key, Clutter.KeyState.PRESSED);
+    }
+
+    release(key) {
+        this._notify(key, Clutter.KeyState.RELEASED);
+    }
+}
 
 export default class DualTerminalExtension extends Extension {
     _dbus = null;
@@ -33,8 +70,10 @@ export default class DualTerminalExtension extends Extension {
     _defaultTracked = [];
     _singletonWindows = new Map();
     _settings = null;
+    _keyboard = null;
 
     enable() {
+        this._keyboard = new Keyboard();
         this._dbus = Gio.DBusExportedObject.wrapJSObject(IFACE, this);
         this._dbus.export(
             Gio.DBus.session,
@@ -64,6 +103,10 @@ export default class DualTerminalExtension extends Extension {
         if (this._dbus) {
             this._dbus.unexport();
             this._dbus = null;
+        }
+        if (this._keyboard) {
+            this._keyboard.destroy();
+            this._keyboard = null;
         }
         this._settings = null;
         this._pending = [];
@@ -207,6 +250,59 @@ export default class DualTerminalExtension extends Extension {
         return `focused existing window \"${win.get_title()}\"`;
     }
 
+    _focusAndRun(matchWmClass, matchTitle, callback) {
+        const win = this._focusMatchingWindow(matchWmClass, matchTitle) ||
+            this._focusMatchingWindow(matchWmClass);
+        if (!win)
+            return false;
+
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+            callback();
+            return GLib.SOURCE_REMOVE;
+        });
+        return true;
+    }
+
+    _focusMatchingWindow(matchWmClass, matchTitle = null) {
+        const windows = global.get_window_actors()
+            .map(actor => actor.meta_window)
+            .filter(win => this._isLiveWindow(win));
+
+        const found = windows.find(win => {
+            const title = win.get_title() || '';
+            const wmClass = (win.get_wm_class() || '').toLowerCase();
+            if (matchTitle && title === matchTitle)
+                return true;
+            return wmClass === matchWmClass.toLowerCase();
+        }) || null;
+
+        if (!found)
+            return null;
+
+        const now = global.get_current_time();
+        if (found.minimized)
+            found.unminimize();
+        found.activate(now);
+        return found;
+    }
+
+    _pressAccelerator(keys) {
+        if (!this._keyboard)
+            return 'keyboard unavailable';
+
+        for (const key of keys.slice(0, -1))
+            this._keyboard.press(key);
+
+        const last = keys[keys.length - 1];
+        this._keyboard.press(last);
+        this._keyboard.release(last);
+
+        for (const key of keys.slice(0, -1).reverse())
+            this._keyboard.release(key);
+
+        return 'ok';
+    }
+
     _spawnArgv(task) {
         if (Array.isArray(task.argv) && task.argv.length > 0)
             return task.argv;
@@ -331,6 +427,42 @@ export default class DualTerminalExtension extends Extension {
 
         this._spawnTask();
         return `launching singleton ${id || matchTitle || matchWmClass || 'window'}`;
+    }
+
+    TerminatorNextPane() {
+        if (!this._focusAndRun('terminator', 'AI Terminator', () => {
+            this._pressAccelerator([
+                Clutter.KEY_Control_L,
+                Clutter.KEY_Shift_L,
+                Clutter.KEY_n,
+            ]);
+        }))
+            return 'no terminator window';
+        return 'queued Ctrl+Shift+N';
+    }
+
+    TerminatorPrevPane() {
+        if (!this._focusAndRun('terminator', 'AI Terminator', () => {
+            this._pressAccelerator([
+                Clutter.KEY_Control_L,
+                Clutter.KEY_Shift_L,
+                Clutter.KEY_p,
+            ]);
+        }))
+            return 'no terminator window';
+        return 'queued Ctrl+Shift+P';
+    }
+
+    TerminatorToggleZoom() {
+        if (!this._focusAndRun('terminator', 'AI Terminator', () => {
+            this._pressAccelerator([
+                Clutter.KEY_Control_L,
+                Clutter.KEY_Shift_L,
+                Clutter.KEY_x,
+            ]);
+        }))
+            return 'no terminator window';
+        return 'queued Ctrl+Shift+X';
     }
 
     MoveToMonitor(monitorIndex, fullscreen) {

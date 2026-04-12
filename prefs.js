@@ -17,7 +17,7 @@ export default class DualTerminalPreferences extends ExtensionPreferences {
 
         const versionRow = new Adw.EntryRow({
             title: 'Version',
-            text: 'v0.0.3',
+            text: 'v0.0.5',
             editable: false,
         });
         group.add(versionRow);
