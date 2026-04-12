@@ -1,7 +1,11 @@
 {
   "uuid": "dual-terminal@kowalski",
-  "name": "Dual Terminal",
-  "description": "Move the focused window to a specified monitor via DBus",
-  "shell-version": ["49"],
-  "version": 1
+  "name": "Dual Terminal v0.0.3",
+  "description": "Dual Terminal build marker v0.0.3",
+  "shell-version": [
+    "49"
+  ],
+  "version": 5,
+  "settings-schema": "org.gnome.shell.extensions.dual-terminal",
+  "url": "https://github.com/amarcinkowski/dual-terminal"
 }

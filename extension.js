@@ -17,6 +17,10 @@ const IFACE = `
       <arg type="s" direction="in" name="config_json"/>
       <arg type="s" direction="out" name="result"/>
     </method>
+    <method name="LaunchOrFocus">
+      <arg type="s" direction="in" name="config_json"/>
+      <arg type="s" direction="out" name="result"/>
+    </method>
     <method name="ListWindows">
       <arg type="s" direction="out" name="result"/>
     </method>
@@ -27,6 +31,7 @@ export default class DualTerminalExtension extends Extension {
     _dbus = null;
     _pending = [];
     _defaultTracked = [];
+    _singletonWindows = new Map();
     _settings = null;
 
     enable() {
@@ -63,23 +68,38 @@ export default class DualTerminalExtension extends Extension {
         this._settings = null;
         this._pending = [];
         this._defaultTracked = [];
+        this._singletonWindows.clear();
     }
 
     _getKeybindingSettings() {
-        if (!this._settings) {
+        if (!this._settings)
             this._settings = this.getSettings('org.gnome.shell.extensions.dual-terminal');
-        }
         return this._settings;
     }
 
+    _isLiveWindow(win) {
+        try {
+            return !!win && win.get_wm_class() !== null;
+        } catch (e) {
+            return false;
+        }
+    }
+
     _pruneDefaultTracked() {
-        this._defaultTracked = this._defaultTracked.filter(w => {
-            try {
-                return w.get_wm_class() !== null;
-            } catch (e) {
-                return false;
-            }
-        });
+        this._defaultTracked = this._defaultTracked.filter(w => this._isLiveWindow(w));
+    }
+
+    _pruneSingletons() {
+        const liveWindows = new Set(
+            global.get_window_actors()
+                .map(actor => actor.meta_window)
+                .filter(win => this._isLiveWindow(win))
+        );
+
+        for (const [key, win] of this._singletonWindows.entries()) {
+            if (!this._isLiveWindow(win) || !liveWindows.has(win))
+                this._singletonWindows.delete(key);
+        }
     }
 
     _getLiveDefaultWindows() {
@@ -98,14 +118,16 @@ export default class DualTerminalExtension extends Extension {
         const hasVisible = wins.some(w => !w.minimized);
 
         if (hasVisible) {
-            for (const w of wins) w.minimize();
+            for (const w of wins)
+                w.minimize();
         } else {
             const now = global.get_current_time();
             for (const w of wins) {
                 w.unminimize();
                 w.activate(now);
             }
-            if (wins.length > 0) wins[0].activate(now);
+            if (wins.length > 0)
+                wins[0].activate(now);
         }
     }
 
@@ -122,6 +144,8 @@ export default class DualTerminalExtension extends Extension {
                 monitor: settings.get_int('terminal-1-monitor'),
                 cmd: cmd1,
                 terminal: terminalApp,
+                separate: true,
+                fullscreen: settings.get_boolean('fullscreen'),
                 source: 'default',
             });
         }
@@ -131,16 +155,73 @@ export default class DualTerminalExtension extends Extension {
                 monitor: settings.get_int('terminal-2-monitor'),
                 cmd: cmd2,
                 terminal: terminalApp,
+                separate: true,
+                fullscreen: settings.get_boolean('fullscreen'),
                 source: 'default',
             });
         }
 
         if (this._pending.length > 0)
-            this._spawnTerminal();
+            this._spawnTask();
+    }
+
+    _findMatchingWindow({id, matchTitle, matchWmClass}) {
+        const windows = global.get_window_actors()
+            .map(actor => actor.meta_window)
+            .filter(win => this._isLiveWindow(win));
+        const liveWindowSet = new Set(windows);
+
+        for (const [key, win] of this._singletonWindows.entries()) {
+            if (!liveWindowSet.has(win))
+                this._singletonWindows.delete(key);
+        }
+
+        if (id && this._singletonWindows.has(id))
+            return this._singletonWindows.get(id);
+
+        const titleNeedle = matchTitle || null;
+        const classNeedle = matchWmClass ? matchWmClass.toLowerCase() : null;
+
+        const found = windows.find(win => {
+            const title = win.get_title() || '';
+            const wmClass = (win.get_wm_class() || '').toLowerCase();
+
+            if (titleNeedle && title === titleNeedle)
+                return true;
+            if (classNeedle && wmClass === classNeedle)
+                return true;
+            return false;
+        }) || null;
+
+        if (found && id)
+            this._singletonWindows.set(id, found);
+
+        return found;
+    }
+
+    _focusWindow(win, monitor, fullscreen) {
+        const now = global.get_current_time();
+        if (win.minimized)
+            win.unminimize();
+        win.activate(now);
+        return `focused existing window \"${win.get_title()}\"`;
+    }
+
+    _spawnArgv(task) {
+        if (Array.isArray(task.argv) && task.argv.length > 0)
+            return task.argv;
+
+        const argv = [task.terminal || 'ptyxis'];
+        if (task.separate !== false)
+            argv.push('-s');
+        if (task.cmd)
+            argv.push('-x', task.cmd);
+        return argv;
     }
 
     _onWindowCreated(win) {
-        if (this._pending.length === 0) return;
+        if (this._pending.length === 0)
+            return;
 
         const id = win.connect('notify::wm-class', () => {
             win.disconnect(id);
@@ -154,41 +235,32 @@ export default class DualTerminalExtension extends Extension {
     }
 
     _assignWindow(win) {
-        if (this._pending.length === 0) return;
+        if (this._pending.length === 0)
+            return;
 
         const task = this._pending.shift();
-        const nMonitors = global.display.get_n_monitors();
-
-        if (task.monitor >= 0 && task.monitor < nMonitors) {
-            win.move_to_monitor(task.monitor);
-        }
-
-        const settings = this._getKeybindingSettings();
-        if (settings.get_boolean('fullscreen'))
-            win.make_fullscreen();
-        else
-            win.maximize(Meta.MaximizeFlags.BOTH);
 
         if (task.source === 'default')
             this._defaultTracked.push(win);
+        if (task.source === 'singleton' && task.singletonId)
+            this._singletonWindows.set(task.singletonId, win);
 
-        if (this._pending.length > 0) {
-            this._spawnTerminal();
-        }
+        if (this._pending.length > 0)
+            this._spawnTask();
     }
 
-    _spawnTerminal() {
+    _spawnTask() {
         const task = this._pending[0];
-        if (!task) return;
+        if (!task)
+            return;
 
-        const argv = [task.terminal, '-s'];
-        if (task.cmd) {
-            argv.push('-x', task.cmd);
-        }
+        const argv = this._spawnArgv(task);
 
         try {
             GLib.spawn_async(
-                null, argv, null,
+                null,
+                argv,
+                null,
                 GLib.SpawnFlags.SEARCH_PATH | GLib.SpawnFlags.DO_NOT_REAP_CHILD,
                 null
             );
@@ -198,8 +270,6 @@ export default class DualTerminalExtension extends Extension {
         }
     }
 
-    // --- DBus methods ---
-
     Launch(configJson) {
         let config;
         try {
@@ -208,6 +278,7 @@ export default class DualTerminalExtension extends Extension {
             return `error: invalid JSON: ${e.message}`;
         }
 
+        const settings = this._getKeybindingSettings();
         const terminalApp = config.terminal || 'ptyxis';
         const terminals = config.terminals || [];
         if (terminals.length === 0)
@@ -216,26 +287,66 @@ export default class DualTerminalExtension extends Extension {
         this._pending = terminals.map(t => ({
             monitor: t.monitor ?? 0,
             cmd: t.cmd || null,
-            terminal: terminalApp,
+            argv: Array.isArray(t.argv) ? t.argv : null,
+            terminal: t.terminal || terminalApp,
+            separate: t.separate ?? true,
+            fullscreen: t.fullscreen ?? config.fullscreen ?? settings.get_boolean('fullscreen'),
             source: 'dbus',
+            singletonId: t.singleton_id || null,
         }));
 
-        this._spawnTerminal();
+        this._spawnTask();
         return `launching ${terminals.length} terminals`;
+    }
+
+    LaunchOrFocus(configJson) {
+        let config;
+        try {
+            config = JSON.parse(configJson);
+        } catch (e) {
+            return `error: invalid JSON: ${e.message}`;
+        }
+
+        const settings = this._getKeybindingSettings();
+        const id = config.id || null;
+        const monitor = config.monitor ?? 0;
+        const fullscreen = config.fullscreen ?? settings.get_boolean('fullscreen');
+        const matchTitle = config.match_title || config.title || null;
+        const matchWmClass = config.match_wm_class || null;
+
+        const existing = this._findMatchingWindow({id, matchTitle, matchWmClass});
+        if (existing)
+            return this._focusWindow(existing, monitor, fullscreen);
+
+        this._pending = [{
+            monitor,
+            cmd: config.cmd || null,
+            argv: Array.isArray(config.argv) ? config.argv : null,
+            terminal: config.terminal || 'ptyxis',
+            separate: config.separate ?? true,
+            fullscreen,
+            source: 'singleton',
+            singletonId: id,
+        }];
+
+        this._spawnTask();
+        return `launching singleton ${id || matchTitle || matchWmClass || 'window'}`;
     }
 
     MoveToMonitor(monitorIndex, fullscreen) {
         const win = global.display.get_focus_window();
-        if (!win) return 'no focused window';
+        if (!win)
+            return 'no focused window';
 
         const nMonitors = global.display.get_n_monitors();
         if (monitorIndex < 0 || monitorIndex >= nMonitors)
             return `invalid monitor ${monitorIndex}, have ${nMonitors}`;
 
         win.move_to_monitor(monitorIndex);
-        if (fullscreen) win.make_fullscreen();
+        if (fullscreen)
+            win.make_fullscreen();
 
-        return `moved "${win.get_title()}" to monitor ${monitorIndex}`;
+        return `moved \"${win.get_title()}\" to monitor ${monitorIndex}`;
     }
 
     ListWindows() {
