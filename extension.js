@@ -430,7 +430,7 @@ export default class DualTerminalExtension extends Extension {
     }
 
     TerminatorNextPane() {
-        if (!this._focusAndRun('terminator', 'AI Terminator', () => {
+        if (!this._focusAndRun('terminator', 'Bridge', () => {
             this._pressAccelerator([
                 Clutter.KEY_Control_L,
                 Clutter.KEY_Shift_L,
@@ -442,7 +442,7 @@ export default class DualTerminalExtension extends Extension {
     }
 
     TerminatorPrevPane() {
-        if (!this._focusAndRun('terminator', 'AI Terminator', () => {
+        if (!this._focusAndRun('terminator', 'Bridge', () => {
             this._pressAccelerator([
                 Clutter.KEY_Control_L,
                 Clutter.KEY_Shift_L,
@@ -454,7 +454,7 @@ export default class DualTerminalExtension extends Extension {
     }
 
     TerminatorToggleZoom() {
-        if (!this._focusAndRun('terminator', 'AI Terminator', () => {
+        if (!this._focusAndRun('terminator', 'Bridge', () => {
             this._pressAccelerator([
                 Clutter.KEY_Control_L,
                 Clutter.KEY_Shift_L,
