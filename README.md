@@ -1,6 +1,16 @@
-# Dual Terminal — GNOME Shell Extension
+# ai-bridge-gnome — GNOME Shell Extension
 
-Launch fullscreen terminal windows on specific monitors with a single keyboard shortcut. Built for multi-monitor setups on GNOME Wayland.
+GNOME Shell extension for controlling the `Bridge` AI workbench on GNOME Wayland.
+
+This project is currently still stored in the repository and runtime paths named `dual-terminal`, but the user-facing system name is now `ai-bridge-gnome`.
+
+Compatibility note:
+
+- GNOME extension UUID is still `dual-terminal@kowalski`
+- settings schema is still `org.gnome.shell.extensions.dual-terminal`
+- DBus interface is still `org.gnome.Shell.Extensions.DualTerminal`
+
+Those identifiers stay unchanged for now to avoid breaking the working `Bridge` setup.
 
 ## Why?
 
@@ -15,6 +25,13 @@ On GNOME 49+ Wayland, there is no straightforward way to launch a window on a ch
 | `org.gnome.Shell.Eval` | disabled since GNOME 45+ |
 
 This extension solves it by using the Mutter API directly from within GNOME Shell.
+
+In the current setup its primary role is no longer “two terminals”. It exists mainly to:
+
+- launch or focus the main `Bridge` window
+- route `Bridge` fallback windows (`Bridge CODEX`, `Bridge CLAUDE`, `Bridge GEMMA`)
+- move freshly launched `Bridge` windows to the desired monitor
+- provide DBus control hooks for `OpenDeck`
 
 ## Installation
 
@@ -49,7 +66,7 @@ Pressing `Super+X` again hides or restores only the windows from that default la
 
 ### DBus API
 
-The extension exposes `org.gnome.Shell.Extensions.DualTerminal` on the session bus.
+The extension currently exposes `org.gnome.Shell.Extensions.DualTerminal` on the session bus.
 
 **Launch** — spawn terminals with a custom configuration:
 
@@ -127,6 +144,16 @@ gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowals
 - GNOME Shell 45+ (tested on 49, Wayland)
 - [Ptyxis](https://gitlab.gnome.org/chergert/ptyxis) terminal (or any terminal supporting `-s` for separate instance and `-x` for command execution)
 - tmux
+
+## Bridge context
+
+The current `Bridge` workbench uses this extension together with:
+
+- `Terminator` as frontend
+- `tmux` as persistent backend
+- `OpenDeck` as hardware input layer
+
+The long-term direction is to treat this extension as the `ai-bridge-gnome` orchestration layer for that stack.
 
 ## License
 

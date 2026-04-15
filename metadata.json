@@ -1,7 +1,7 @@
 {
   "uuid": "dual-terminal@kowalski",
-  "name": "Dual Terminal v0.0.5",
-  "description": "Dual Terminal build marker v0.0.5",
+  "name": "ai-bridge-gnome",
+  "description": "GNOME bridge control extension for the Bridge AI workbench",
   "shell-version": [
     "49"
   ],
