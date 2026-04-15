@@ -1,9 +1,9 @@
-<schemalist gettext-domain="dual-terminal@kowalski">
-  <schema id="org.gnome.shell.extensions.dual-terminal"
-          path="/org/gnome/shell/extensions/dual-terminal/">
-    <key name="dual-terminal-launch" type="as">
+<schemalist gettext-domain="ai-bridge-gnome@kowalski">
+  <schema id="org.gnome.shell.extensions.ai-bridge-gnome"
+          path="/org/gnome/shell/extensions/ai-bridge-gnome/">
+    <key name="ai-bridge-gnome-launch" type="as">
       <default>['&lt;Super&gt;x']</default>
-      <summary>Launch dual terminal</summary>
+      <summary>Launch ai-bridge-gnome</summary>
       <description>Keybinding to launch two fullscreen terminals on separate monitors with tmux</description>
     </key>
     <key name="fullscreen" type="b">

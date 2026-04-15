@@ -2,7 +2,7 @@ import Gio from 'gi://Gio';
 import Adw from 'gi://Adw';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-export default class DualTerminalPreferences extends ExtensionPreferences {
+export default class AiBridgeGnomePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const page = new Adw.PreferencesPage({
             title: 'Build',
@@ -17,7 +17,7 @@ export default class DualTerminalPreferences extends ExtensionPreferences {
 
         const versionRow = new Adw.EntryRow({
             title: 'Version',
-            text: 'v0.0.5',
+            text: 'v0.0.6',
             editable: false,
         });
         group.add(versionRow);

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UUID="dual-terminal@kowalski"
+UUID="ai-bridge-gnome@kowalski"
 
 glib-compile-schemas "$ROOT_DIR/schemas"
 gnome-extensions disable "$UUID" >/dev/null 2>&1 || true

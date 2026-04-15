@@ -1,6 +1,6 @@
 #!/bin/bash
 # ai-workbench.sh — Tilix + tmux ghost + Claude Code
-# Wywoływany przez GNOME extension dual-terminal@kowalski
+# Wywoływany przez GNOME extension ai-bridge-gnome@kowalski
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"

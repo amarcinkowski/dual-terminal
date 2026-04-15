@@ -6,9 +6,17 @@ import Shell from 'gi://Shell';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-const IFACE = `
+const NEW_DBUS_INTERFACE = 'org.gnome.Shell.Extensions.AiBridgeGnome';
+const NEW_DBUS_PATH = '/org/gnome/Shell/Extensions/AiBridgeGnome';
+const OLD_DBUS_INTERFACE = 'org.gnome.Shell.Extensions.DualTerminal';
+const OLD_DBUS_PATH = '/org/gnome/Shell/Extensions/DualTerminal';
+const SETTINGS_SCHEMA = 'org.gnome.shell.extensions.ai-bridge-gnome';
+const KEYBINDING_NAME = 'ai-bridge-gnome-launch';
+
+function dbusInterfaceXml(interfaceName) {
+    return `
 <node>
-  <interface name="org.gnome.Shell.Extensions.DualTerminal">
+  <interface name="${interfaceName}">
     <method name="MoveToMonitor">
       <arg type="i" direction="in" name="monitor"/>
       <arg type="b" direction="in" name="fullscreen"/>
@@ -36,6 +44,7 @@ const IFACE = `
     </method>
   </interface>
 </node>`;
+}
 
 class Keyboard {
     constructor() {
@@ -64,8 +73,9 @@ class Keyboard {
     }
 }
 
-export default class DualTerminalExtension extends Extension {
-    _dbus = null;
+export default class AiBridgeGnomeExtension extends Extension {
+    _dbusNew = null;
+    _dbusOld = null;
     _pending = [];
     _defaultTracked = [];
     _singletonWindows = new Map();
@@ -74,10 +84,15 @@ export default class DualTerminalExtension extends Extension {
 
     enable() {
         this._keyboard = new Keyboard();
-        this._dbus = Gio.DBusExportedObject.wrapJSObject(IFACE, this);
-        this._dbus.export(
+        this._dbusNew = Gio.DBusExportedObject.wrapJSObject(dbusInterfaceXml(NEW_DBUS_INTERFACE), this);
+        this._dbusNew.export(
             Gio.DBus.session,
-            '/org/gnome/Shell/Extensions/DualTerminal'
+            NEW_DBUS_PATH
+        );
+        this._dbusOld = Gio.DBusExportedObject.wrapJSObject(dbusInterfaceXml(OLD_DBUS_INTERFACE), this);
+        this._dbusOld.export(
+            Gio.DBus.session,
+            OLD_DBUS_PATH
         );
 
         this._windowAddedId = global.display.connect(
@@ -85,7 +100,7 @@ export default class DualTerminalExtension extends Extension {
         );
 
         Main.wm.addKeybinding(
-            'dual-terminal-launch',
+            KEYBINDING_NAME,
             this._getKeybindingSettings(),
             Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
@@ -94,15 +109,19 @@ export default class DualTerminalExtension extends Extension {
     }
 
     disable() {
-        Main.wm.removeKeybinding('dual-terminal-launch');
+        Main.wm.removeKeybinding(KEYBINDING_NAME);
 
         if (this._windowAddedId) {
             global.display.disconnect(this._windowAddedId);
             this._windowAddedId = null;
         }
-        if (this._dbus) {
-            this._dbus.unexport();
-            this._dbus = null;
+        if (this._dbusNew) {
+            this._dbusNew.unexport();
+            this._dbusNew = null;
+        }
+        if (this._dbusOld) {
+            this._dbusOld.unexport();
+            this._dbusOld = null;
         }
         if (this._keyboard) {
             this._keyboard.destroy();
@@ -116,7 +135,7 @@ export default class DualTerminalExtension extends Extension {
 
     _getKeybindingSettings() {
         if (!this._settings)
-            this._settings = this.getSettings('org.gnome.shell.extensions.dual-terminal');
+            this._settings = this.getSettings(SETTINGS_SCHEMA);
         return this._settings;
     }
 
@@ -362,7 +381,7 @@ export default class DualTerminalExtension extends Extension {
             );
         } catch (e) {
             this._pending.shift();
-            log(`[DualTerminal] spawn error: ${e.message}`);
+            log(`[AiBridgeGnome] spawn error: ${e.message}`);
         }
     }
 

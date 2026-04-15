@@ -1,11 +1,11 @@
 {
-  "uuid": "dual-terminal@kowalski",
+  "uuid": "ai-bridge-gnome@kowalski",
   "name": "ai-bridge-gnome",
   "description": "GNOME bridge control extension for the Bridge AI workbench",
   "shell-version": [
     "49"
   ],
-  "version": 7,
-  "settings-schema": "org.gnome.shell.extensions.dual-terminal",
+  "version": 8,
+  "settings-schema": "org.gnome.shell.extensions.ai-bridge-gnome",
   "url": "https://github.com/amarcinkowski/dual-terminal"
 }

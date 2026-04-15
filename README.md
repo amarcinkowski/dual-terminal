@@ -2,15 +2,23 @@
 
 GNOME Shell extension for controlling the `Bridge` AI workbench on GNOME Wayland.
 
-This project is currently still stored in the repository and runtime paths named `dual-terminal`, but the user-facing system name is now `ai-bridge-gnome`.
+The user-facing workspace remains `Bridge`. This extension is the GNOME orchestration layer behind it.
 
-Compatibility note:
+## Runtime identifiers
 
-- GNOME extension UUID is still `dual-terminal@kowalski`
-- settings schema is still `org.gnome.shell.extensions.dual-terminal`
-- DBus interface is still `org.gnome.Shell.Extensions.DualTerminal`
+Primary identifiers:
 
-Those identifiers stay unchanged for now to avoid breaking the working `Bridge` setup.
+- GNOME extension UUID: `ai-bridge-gnome@kowalski`
+- settings schema: `org.gnome.shell.extensions.ai-bridge-gnome`
+- DBus interface: `org.gnome.Shell.Extensions.AiBridgeGnome`
+- DBus path: `/org/gnome/Shell/Extensions/AiBridgeGnome`
+
+Compatibility during migration:
+
+- old DBus interface `org.gnome.Shell.Extensions.DualTerminal` is still exported
+- old DBus path `/org/gnome/Shell/Extensions/DualTerminal` is still exported
+
+The repository checkout may still live locally as `~/git/dual-terminal`, but the runtime extension name is now `ai-bridge-gnome`.
 
 ## Why?
 
@@ -26,7 +34,7 @@ On GNOME 49+ Wayland, there is no straightforward way to launch a window on a ch
 
 This extension solves it by using the Mutter API directly from within GNOME Shell.
 
-In the current setup its primary role is no longer “two terminals”. It exists mainly to:
+In the current setup its primary role is to:
 
 - launch or focus the main `Bridge` window
 - route `Bridge` fallback windows (`Bridge CODEX`, `Bridge CLAUDE`, `Bridge GEMMA`)
@@ -37,19 +45,19 @@ In the current setup its primary role is no longer “two terminals”. It exist
 
 ```bash
 # Clone the repo
-git clone https://github.com/amarcinkowski/dual-terminal.git
+git clone https://github.com/amarcinkowski/dual-terminal.git ~/git/dual-terminal
 
 # Copy to GNOME Shell extensions directory
-cp -r dual-terminal ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski
+cp -r ~/git/dual-terminal ~/.local/share/gnome-shell/extensions/ai-bridge-gnome@kowalski
 
 # Compile the GSettings schema
 glib-compile-schemas \
-  ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas/
+  ~/.local/share/gnome-shell/extensions/ai-bridge-gnome@kowalski/schemas/
 
 # Log out and log back in (GNOME Shell needs to discover the new extension)
 
 # Enable the extension
-gnome-extensions enable dual-terminal@kowalski
+gnome-extensions enable ai-bridge-gnome@kowalski
 ```
 
 ## Usage
@@ -66,14 +74,19 @@ Pressing `Super+X` again hides or restores only the windows from that default la
 
 ### DBus API
 
-The extension currently exposes `org.gnome.Shell.Extensions.DualTerminal` on the session bus.
+Primary DBus interface:
+
+- `org.gnome.Shell.Extensions.AiBridgeGnome`
+- `/org/gnome/Shell/Extensions/AiBridgeGnome`
+
+The extension also exports the legacy `DualTerminal` DBus API for compatibility while the rest of the stack migrates.
 
 **Launch** — spawn terminals with a custom configuration:
 
 ```bash
 gdbus call --session --dest org.gnome.Shell \
-  --object-path /org/gnome/Shell/Extensions/DualTerminal \
-  --method org.gnome.Shell.Extensions.DualTerminal.Launch \
+  --object-path /org/gnome/Shell/Extensions/AiBridgeGnome \
+  --method org.gnome.Shell.Extensions.AiBridgeGnome.Launch \
   '{"terminal":"ptyxis","terminals":[
     {"monitor":1,"cmd":"tmux new-session -A -s work"},
     {"monitor":0,"cmd":"tmux new-session -A -s chat"}
@@ -84,8 +97,8 @@ gdbus call --session --dest org.gnome.Shell \
 
 ```bash
 gdbus call --session --dest org.gnome.Shell \
-  --object-path /org/gnome/Shell/Extensions/DualTerminal \
-  --method org.gnome.Shell.Extensions.DualTerminal.MoveToMonitor 1 true
+  --object-path /org/gnome/Shell/Extensions/AiBridgeGnome \
+  --method org.gnome.Shell.Extensions.AiBridgeGnome.MoveToMonitor 1 true
 ```
 
 Parameters: `monitor_index` (int), `fullscreen` (bool).
@@ -94,8 +107,8 @@ Parameters: `monitor_index` (int), `fullscreen` (bool).
 
 ```bash
 gdbus call --session --dest org.gnome.Shell \
-  --object-path /org/gnome/Shell/Extensions/DualTerminal \
-  --method org.gnome.Shell.Extensions.DualTerminal.ListWindows
+  --object-path /org/gnome/Shell/Extensions/AiBridgeGnome \
+  --method org.gnome.Shell.Extensions.AiBridgeGnome.ListWindows
 ```
 
 ## Configuration
@@ -105,11 +118,11 @@ gdbus call --session --dest org.gnome.Shell \
 The default layout is configured via GSettings schema keys:
 
 ```bash
-gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas \
-  get org.gnome.shell.extensions.dual-terminal terminal-1-cmd
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/ai-bridge-gnome@kowalski/schemas \
+  get org.gnome.shell.extensions.ai-bridge-gnome terminal-1-cmd
 
-gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas \
-  get org.gnome.shell.extensions.dual-terminal terminal-2-cmd
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/ai-bridge-gnome@kowalski/schemas \
+  get org.gnome.shell.extensions.ai-bridge-gnome terminal-2-cmd
 ```
 
 ### Keybinding
@@ -117,8 +130,8 @@ gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowals
 The default shortcut is `Super+X`. Change it via GSettings:
 
 ```bash
-gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas \
-  set org.gnome.shell.extensions.dual-terminal dual-terminal-launch "['<Super>z']"
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/ai-bridge-gnome@kowalski/schemas \
+  set org.gnome.shell.extensions.ai-bridge-gnome ai-bridge-gnome-launch "['<Super>z']"
 ```
 
 ### Fullscreen
@@ -126,8 +139,8 @@ gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowals
 By default terminals are **maximized**. To use fullscreen instead:
 
 ```bash
-gsettings --schemadir ~/.local/share/gnome-shell/extensions/dual-terminal@kowalski/schemas \
-  set org.gnome.shell.extensions.dual-terminal fullscreen true
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/ai-bridge-gnome@kowalski/schemas \
+  set org.gnome.shell.extensions.ai-bridge-gnome fullscreen true
 ```
 
 ## How it works
